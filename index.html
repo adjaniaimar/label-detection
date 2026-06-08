@@ -427,7 +427,7 @@
   <div class="logo">TMO</div>
   <div>
     <h1>Label Detector</h1>
-    <p>Deteksi DIESEL / GASOLINE otomatis</p>
+    <p>QC: 15W-40 CI-4 DIESEL only</p>
   </div>
 </header>
 
@@ -473,7 +473,7 @@
     <div class="instruction" id="instructionState">
       <div class="instruction-icon">🔍</div>
       <h2>Siap Mendeteksi</h2>
-      <p>Arahkan kamera ke label oli TMO, pastikan tulisan <strong>DIESEL</strong> atau <strong>GASOLINE</strong> terlihat jelas, lalu tekan tombol Deteksi.</p>
+      <p>Arahkan kamera ke label oli TMO. Produk dinyatakan <strong>OK</strong> hanya jika terbaca <strong>15W-40 · CI-4 · DIESEL</strong> secara bersamaan.</p>
     </div>
 
     <!-- Result card (hidden until scan) -->
@@ -595,21 +595,30 @@ async function captureAndAnalyze() {
               type: 'text',
               text: `Kamu adalah sistem QC otomatis untuk produk oli TMO Lubricant.
 
-Analisis gambar label oli ini dan cari tulisan "DIESEL" atau "GASOLINE" pada label.
+Produk yang DITERIMA (OK) harus memenuhi KETIGA kriteria berikut secara bersamaan:
+1. Grade viskositas: 15W-40
+2. Spesifikasi API: CI-4
+3. Tipe bahan bakar: DIESEL
+
+Jika salah satu saja tidak sesuai atau tidak terbaca, status adalah NG.
+
+Analisis gambar label oli ini dengan teliti. Baca setiap teks yang terlihat pada label.
 
 Kembalikan HANYA JSON dengan format berikut, tanpa teks lain:
 {
   "status": "OK" | "NG",
-  "type": "DIESEL" | "GASOLINE" | "UNKNOWN",
+  "grade_detected": "<grade yang terbaca, contoh: 15W-40, 10W-40, atau TIDAK TERBACA>",
+  "spec_detected": "<spec API yang terbaca, contoh: CI-4, SN, atau TIDAK TERBACA>",
+  "type_detected": "<tipe yang terbaca: DIESEL, GASOLINE, atau TIDAK TERBACA>",
   "confidence": "HIGH" | "MEDIUM" | "LOW",
-  "grade": "<viscosity grade jika terbaca, contoh: 15W-40 atau 10W-40, kosongkan jika tidak terbaca>",
-  "reason": "<penjelasan singkat dalam bahasa Indonesia, max 2 kalimat>"
+  "ng_reason": "<jika NG, sebutkan kriteria mana yang tidak sesuai. Jika OK, kosongkan>"
 }
 
-Aturan:
-- status OK hanya jika terdeteksi DIESEL atau GASOLINE dengan jelas
-- status NG jika tidak ada tulisan DIESEL/GASOLINE, tidak jelas, bukan produk TMO, atau label rusak/tidak terlihat
-- type UNKNOWN jika tidak bisa membaca`
+Aturan ketat:
+- OK: grade=15W-40 DAN spec=CI-4 DAN type=DIESEL, ketiganya harus terpenuhi
+- NG: jika grade bukan 15W-40, ATAU spec bukan CI-4, ATAU type bukan DIESEL
+- NG: jika label tidak jelas, bukan produk TMO, atau tidak bisa dibaca
+- Jangan mengira-ngira jika tulisan tidak jelas, langsung NG`
             }
           ]
         }]
@@ -624,13 +633,13 @@ Aturan:
       const clean = text.replace(/```json|```/g, '').trim();
       result = JSON.parse(clean);
     } catch {
-      result = { status: 'NG', type: 'UNKNOWN', confidence: 'LOW', grade: '', reason: 'Gagal membaca respons AI. Coba ulangi scan.' };
+      result = { status: 'NG', grade_detected: '—', spec_detected: '—', type_detected: '—', confidence: 'LOW', ng_reason: 'Gagal membaca respons AI. Coba ulangi scan.' };
     }
 
     showResult(result);
 
   } catch (e) {
-    showResult({ status: 'NG', type: 'UNKNOWN', confidence: 'LOW', grade: '', reason: 'Koneksi gagal. Periksa jaringan internet dan coba lagi.' });
+    showResult({ status: 'NG', grade_detected: '—', spec_detected: '—', type_detected: '—', confidence: 'LOW', ng_reason: 'Koneksi gagal. Periksa jaringan internet dan coba lagi.' });
   } finally {
     loadingBar.classList.remove('active');
     isProcessing = false;
@@ -644,32 +653,27 @@ function showResult(r) {
 
   if (isOK) {
     resultBadge.className = 'result-badge badge-ok';
-    resultBadge.textContent = r.type === 'DIESEL' ? '🟢' : '🟡';
-    resultTitle.textContent = r.type + ' — OK';
+    resultBadge.textContent = '✅';
+    resultTitle.textContent = 'Produk OK';
     resultTitle.style.color = '#4ade80';
-    resultSub.textContent = r.grade ? `Grade: ${r.grade}` : 'Produk TMO terdeteksi';
+    resultSub.textContent = '15W-40 CI-4 DIESEL — Semua kriteria terpenuhi';
   } else {
     resultBadge.className = 'result-badge badge-ng';
-    resultBadge.textContent = '🔴';
+    resultBadge.textContent = '❌';
     resultTitle.textContent = 'Produk NG';
     resultTitle.style.color = '#f87171';
-    resultSub.textContent = 'DIESEL / GASOLINE tidak terdeteksi';
+    resultSub.textContent = r.ng_reason || 'Tidak memenuhi spesifikasi yang ditentukan';
   }
 
   chipRow.innerHTML = '';
 
+  // Status chip
   const statusChip = document.createElement('span');
   statusChip.className = 'chip ' + (isOK ? 'chip-ok' : 'chip-ng');
   statusChip.textContent = isOK ? '✓ PASS' : '✗ FAIL';
   chipRow.appendChild(statusChip);
 
-  if (r.type !== 'UNKNOWN') {
-    const typeChip = document.createElement('span');
-    typeChip.className = 'chip chip-neutral';
-    typeChip.textContent = r.type;
-    chipRow.appendChild(typeChip);
-  }
-
+  // Confidence chip
   if (r.confidence) {
     const confChip = document.createElement('span');
     confChip.className = 'chip chip-neutral';
@@ -677,7 +681,34 @@ function showResult(r) {
     chipRow.appendChild(confChip);
   }
 
-  resultDetail.textContent = r.reason || '—';
+  // Checklist breakdown
+  const grade = r.grade_detected || '—';
+  const spec = r.spec_detected || '—';
+  const type = r.type_detected || '—';
+
+  const gradeOK = grade === '15W-40';
+  const specOK = spec === 'CI-4';
+  const typeOK = type === 'DIESEL';
+
+  resultDetail.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:7px;font-size:13px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="color:var(--muted);">Grade Viskositas</span>
+        <span style="font-weight:600;color:${gradeOK ? '#4ade80' : '#f87171'}">${gradeOK ? '✓' : '✗'} ${grade}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="color:var(--muted);">Spesifikasi API</span>
+        <span style="font-weight:600;color:${specOK ? '#4ade80' : '#f87171'}">${specOK ? '✓' : '✗'} ${spec}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="color:var(--muted);">Tipe Bahan Bakar</span>
+        <span style="font-weight:600;color:${typeOK ? '#4ade80' : '#f87171'}">${typeOK ? '✓' : '✗'} ${type}</span>
+      </div>
+      <div style="margin-top:4px;padding-top:8px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);">
+        Target: 15W-40 · CI-4 · DIESEL
+      </div>
+    </div>
+  `;
 
   addHistory(r);
 }
@@ -693,9 +724,12 @@ function addHistory(r) {
   history.forEach(h => {
     const div = document.createElement('div');
     div.className = 'history-item';
+    const label = h.status === 'OK'
+      ? '15W-40 CI-4 DIESEL'
+      : `${h.grade_detected || '—'} · ${h.spec_detected || '—'} · ${h.type_detected || '—'}`;
     div.innerHTML = `
       <div class="h-dot ${h.status === 'OK' ? 'dot-ok' : 'dot-ng'}"></div>
-      <span class="h-type">${h.type !== 'UNKNOWN' ? h.type : 'NG — Tidak Dikenal'}${h.grade ? ' ' + h.grade : ''}</span>
+      <span class="h-type">${label}</span>
       <span class="h-time">${h.time}</span>
     `;
     historyList.appendChild(div);
