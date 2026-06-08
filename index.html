@@ -5,885 +5,659 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>TMO Label Detector</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 
-  :root {
-    --ok: #22c55e;
-    --ng: #ef4444;
-    --warn: #f59e0b;
-    --bg: #0a0a0f;
-    --surface: #13131a;
-    --surface2: #1c1c27;
-    --border: rgba(255,255,255,0.08);
-    --text: #f1f0ff;
-    --muted: #8887a0;
-    --accent: #6366f1;
-  }
+body {
+  background:#000;
+  color:#fff;
+  font-family:'Segoe UI', system-ui, sans-serif;
+  height:100dvh;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    min-height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    overflow-x: hidden;
-  }
+/* ── FULL SCREEN CAMERA ── */
+#video {
+  position:fixed;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  z-index:0;
+}
 
-  header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 14px 16px 10px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-  }
+/* ── OVERLAY LAYER ── */
+#overlay {
+  position:fixed;
+  inset:0;
+  z-index:10;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  pointer-events:none;
+}
 
-  .logo {
-    width: 34px;
-    height: 34px;
-    border-radius: 8px;
-    background: linear-gradient(135deg, #6366f1, #818cf8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 800;
-    font-size: 13px;
-    letter-spacing: -0.5px;
-    color: white;
-    flex-shrink: 0;
-  }
+/* ── SCAN BOX ── */
+.scan-box {
+  width:82vw;
+  max-width:340px;
+  aspect-ratio:2.2/1;
+  position:relative;
+}
 
-  header h1 {
-    font-size: 15px;
-    font-weight: 600;
-    letter-spacing: 0.2px;
-  }
+.corner {
+  position:absolute;
+  width:22px;
+  height:22px;
+  border-color:#fff;
+  border-style:solid;
+  opacity:0.85;
+}
+.corner.tl { top:0; left:0; border-width:3px 0 0 3px; border-radius:5px 0 0 0; }
+.corner.tr { top:0; right:0; border-width:3px 3px 0 0; border-radius:0 5px 0 0; }
+.corner.bl { bottom:0; left:0; border-width:0 0 3px 3px; border-radius:0 0 0 5px; }
+.corner.br { bottom:0; right:0; border-width:0 3px 3px 0; border-radius:0 0 5px 0; }
 
-  header p {
-    font-size: 11px;
-    color: var(--muted);
-    margin-top: 1px;
-  }
+.scan-border {
+  position:absolute;
+  inset:0;
+  border:1.5px solid rgba(255,255,255,0.18);
+  border-radius:8px;
+}
 
-  .main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-  }
+.scan-line {
+  position:absolute;
+  left:8px; right:8px;
+  height:2px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.7),transparent);
+  animation:scanMove 2s ease-in-out infinite;
+  top:8px;
+  border-radius:1px;
+}
 
-  /* CAMERA SECTION */
-  .camera-wrap {
-    position: relative;
-    width: 100%;
-    background: #000;
-    aspect-ratio: 4/3;
-    overflow: hidden;
-    flex-shrink: 0;
-  }
+@keyframes scanMove {
+  0%   { top:8px; opacity:0; }
+  15%  { opacity:1; }
+  85%  { opacity:1; }
+  100% { top:calc(100% - 10px); opacity:0; }
+}
 
-  #video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
+/* Hint text below scan box */
+.scan-hint {
+  margin-top:12px;
+  font-size:12px;
+  color:rgba(255,255,255,0.7);
+  letter-spacing:0.4px;
+  background:rgba(0,0,0,0.45);
+  padding:5px 14px;
+  border-radius:20px;
+  backdrop-filter:blur(4px);
+}
 
-  #canvas { display: none; }
+/* ── RESULT PILL (bottom of screen) ── */
+#resultPill {
+  position:fixed;
+  bottom:0;
+  left:0; right:0;
+  z-index:20;
+  padding:0 16px 20px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  pointer-events:none;
+}
 
-  .cam-overlay {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
-  }
+.pill-status {
+  border-radius:16px;
+  padding:14px 18px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  backdrop-filter:blur(16px);
+  border:1px solid rgba(255,255,255,0.12);
+  transition:background 0.3s, border-color 0.3s;
+}
 
-  .scan-frame {
-    width: 220px;
-    height: 100px;
-    border: 2px solid rgba(99,102,241,0.7);
-    border-radius: 10px;
-    position: relative;
-    box-shadow: 0 0 0 9999px rgba(0,0,0,0.38);
-  }
+.pill-status.idle    { background:rgba(20,20,30,0.78); }
+.pill-status.ok      { background:rgba(22,163,74,0.82); border-color:rgba(74,222,128,0.3); }
+.pill-status.ng      { background:rgba(185,28,28,0.82); border-color:rgba(248,113,113,0.3); }
+.pill-status.loading { background:rgba(20,20,30,0.78); }
 
-  .scan-frame::before,
-  .scan-frame::after {
-    content: '';
-    position: absolute;
-    width: 20px;
-    height: 20px;
-    border-color: #818cf8;
-    border-style: solid;
-  }
+.pill-icon { font-size:26px; flex-shrink:0; }
 
-  .scan-frame::before {
-    top: -2px; left: -2px;
-    border-width: 3px 0 0 3px;
-    border-radius: 8px 0 0 0;
-  }
+.pill-text { flex:1; }
+.pill-title { font-size:16px; font-weight:700; letter-spacing:-0.2px; line-height:1.2; }
+.pill-sub   { font-size:12px; opacity:0.8; margin-top:2px; line-height:1.4; }
 
-  .scan-frame::after {
-    bottom: -2px; right: -2px;
-    border-width: 0 3px 3px 0;
-    border-radius: 0 0 8px 0;
-  }
+/* Checklist row inside pill */
+.check-row {
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:6px;
+}
 
-  .scan-line {
-    position: absolute;
-    left: 6px; right: 6px;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, #818cf8, transparent);
-    animation: scanAnim 2s ease-in-out infinite;
-    top: 10px;
-  }
+.check-chip {
+  font-size:11px;
+  font-weight:600;
+  padding:3px 9px;
+  border-radius:20px;
+  background:rgba(255,255,255,0.12);
+  border:1px solid rgba(255,255,255,0.18);
+}
 
-  @keyframes scanAnim {
-    0% { top: 10px; opacity: 0; }
-    20% { opacity: 1; }
-    80% { opacity: 1; }
-    100% { top: calc(100% - 12px); opacity: 0; }
-  }
+.check-chip.pass { background:rgba(74,222,128,0.2); border-color:rgba(74,222,128,0.4); color:#bbf7d0; }
+.check-chip.fail { background:rgba(248,113,113,0.2); border-color:rgba(248,113,113,0.4); color:#fecaca; }
 
-  .scan-label {
-    margin-top: 12px;
-    font-size: 12px;
-    color: rgba(255,255,255,0.75);
-    background: rgba(0,0,0,0.5);
-    padding: 4px 12px;
-    border-radius: 20px;
-    letter-spacing: 0.5px;
-  }
+/* ── TOP BAR ── */
+#topBar {
+  position:fixed;
+  top:0; left:0; right:0;
+  z-index:20;
+  padding:12px 16px 10px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  background:linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%);
+  pointer-events:none;
+}
 
-  /* Captured image preview */
-  .preview-wrap {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 4/3;
-    background: #000;
-    flex-shrink: 0;
-    display: none;
-  }
+.top-title { font-size:15px; font-weight:700; letter-spacing:0.2px; }
+.top-sub   { font-size:10px; opacity:0.65; margin-top:1px; }
 
-  #preview-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
+/* Top-right controls */
+.top-controls { display:flex; gap:8px; pointer-events:all; }
 
-  /* CONTROLS */
-  .controls {
-    padding: 14px 16px;
-    background: var(--surface);
-    border-top: 1px solid var(--border);
-    display: flex;
-    gap: 10px;
-    align-items: center;
-  }
+.ctrl-btn {
+  width:36px; height:36px;
+  border-radius:50%;
+  background:rgba(0,0,0,0.5);
+  border:1px solid rgba(255,255,255,0.2);
+  color:#fff;
+  font-size:16px;
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  backdrop-filter:blur(4px);
+  transition:background 0.2s;
+}
+.ctrl-btn:active { transform:scale(0.93); }
+.ctrl-btn.active { background:rgba(99,102,241,0.7); border-color:rgba(99,102,241,0.5); }
 
-  .btn {
-    flex: 1;
-    padding: 13px 16px;
-    border: none;
-    border-radius: 12px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: transform 0.1s, opacity 0.2s;
-    letter-spacing: 0.2px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    -webkit-appearance: none;
-  }
+/* ── SCANNING INDICATOR ── */
+#scanIndicator {
+  position:fixed;
+  top:60px; left:50%; transform:translateX(-50%);
+  z-index:20;
+  font-size:11px;
+  color:rgba(255,255,255,0.6);
+  background:rgba(0,0,0,0.4);
+  padding:4px 12px;
+  border-radius:20px;
+  backdrop-filter:blur(4px);
+  pointer-events:none;
+  transition:opacity 0.3s;
+  white-space:nowrap;
+}
 
-  .btn:active { transform: scale(0.97); }
-  .btn:disabled { opacity: 0.45; pointer-events: none; }
+/* ── HISTORY DRAWER ── */
+#historyDrawer {
+  position:fixed;
+  bottom:0; left:0; right:0;
+  z-index:30;
+  background:rgba(10,10,18,0.97);
+  border-radius:20px 20px 0 0;
+  border-top:1px solid rgba(255,255,255,0.1);
+  transform:translateY(100%);
+  transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  max-height:55vh;
+  overflow-y:auto;
+  padding:16px 16px 32px;
+}
+#historyDrawer.open { transform:translateY(0); }
 
-  .btn-capture {
-    background: var(--accent);
-    color: white;
-    flex: 2;
-  }
+.drawer-handle {
+  width:36px; height:4px;
+  background:rgba(255,255,255,0.2);
+  border-radius:2px;
+  margin:0 auto 14px;
+}
 
-  .btn-retake {
-    background: var(--surface2);
-    color: var(--text);
-    border: 1px solid var(--border);
-  }
+.drawer-title {
+  font-size:13px; font-weight:600;
+  letter-spacing:0.8px;
+  color:rgba(255,255,255,0.5);
+  text-transform:uppercase;
+  margin-bottom:12px;
+}
 
-  .btn-icon {
-    font-size: 18px;
-    line-height: 1;
-  }
+.h-item {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 0;
+  border-bottom:1px solid rgba(255,255,255,0.06);
+  font-size:13px;
+}
+.h-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.dot-ok { background:#22c55e; }
+.dot-ng { background:#ef4444; }
+.h-label { flex:1; font-weight:500; }
+.h-time { font-size:11px; color:rgba(255,255,255,0.4); }
 
-  /* RESULT SECTION */
-  .result-area {
-    flex: 1;
-    padding: 14px 16px 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
+/* ── CANVAS (hidden) ── */
+#canvas { display:none; }
 
-  .result-card {
-    border-radius: 14px;
-    padding: 16px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
+/* ── COOLDOWN RING around scan box ── */
+.cooldown-ring {
+  position:absolute;
+  inset:-6px;
+  border-radius:12px;
+  border:2px solid transparent;
+  transition:border-color 0.2s;
+}
+.cooldown-ring.scanning { border-color:rgba(99,102,241,0.6); animation:ringPulse 1s ease-in-out infinite; }
+.cooldown-ring.ok       { border-color:rgba(74,222,128,0.8); }
+.cooldown-ring.ng       { border-color:rgba(248,113,113,0.6); }
 
-  .result-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
+@keyframes ringPulse {
+  0%,100% { opacity:0.5; }
+  50%     { opacity:1; }
+}
 
-  .result-badge {
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 22px;
-    flex-shrink: 0;
-  }
-
-  .badge-ok { background: rgba(34,197,94,0.15); }
-  .badge-ng { background: rgba(239,68,68,0.15); }
-  .badge-wait { background: rgba(99,102,241,0.1); }
-
-  .result-title {
-    font-size: 17px;
-    font-weight: 700;
-    letter-spacing: -0.3px;
-  }
-
-  .result-sub {
-    font-size: 12px;
-    color: var(--muted);
-    margin-top: 2px;
-  }
-
-  .result-detail {
-    font-size: 13px;
-    color: var(--muted);
-    line-height: 1.6;
-    padding-top: 4px;
-    border-top: 1px solid var(--border);
-  }
-
-  /* STATUS CHIPS */
-  .chip-row {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
-  .chip {
-    padding: 5px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.3px;
-  }
-
-  .chip-ok { background: rgba(34,197,94,0.12); color: #4ade80; border: 1px solid rgba(34,197,94,0.25); }
-  .chip-ng { background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
-  .chip-neutral { background: rgba(255,255,255,0.06); color: var(--muted); border: 1px solid var(--border); }
-
-  /* LOADING STATE */
-  .loading-bar {
-    height: 3px;
-    background: var(--border);
-    border-radius: 2px;
-    overflow: hidden;
-    display: none;
-  }
-
-  .loading-bar.active { display: block; }
-
-  .loading-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #6366f1, #818cf8, #6366f1);
-    background-size: 200% 100%;
-    border-radius: 2px;
-    animation: loadPulse 1.2s linear infinite;
-    width: 60%;
-  }
-
-  @keyframes loadPulse {
-    0% { background-position: -100% 0; }
-    100% { background-position: 200% 0; }
-  }
-
-  /* HISTORY */
-  .history-label {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--muted);
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    padding: 0 2px;
-  }
-
-  .history-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .history-item {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 10px 14px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 13px;
-  }
-
-  .h-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .dot-ok { background: var(--ok); }
-  .dot-ng { background: var(--ng); }
-
-  .h-type { font-weight: 600; flex: 1; }
-  .h-time { font-size: 11px; color: var(--muted); }
-
-  /* Instruction state */
-  .instruction {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    padding: 20px 10px;
-    text-align: center;
-  }
-
-  .instruction-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 16px;
-    background: rgba(99,102,241,0.1);
-    border: 1px solid rgba(99,102,241,0.2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 26px;
-  }
-
-  .instruction h2 {
-    font-size: 15px;
-    font-weight: 600;
-  }
-
-  .instruction p {
-    font-size: 13px;
-    color: var(--muted);
-    line-height: 1.6;
-    max-width: 280px;
-  }
-
-  /* Camera switch */
-  .cam-switch {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: rgba(0,0,0,0.55);
-    border: 1px solid rgba(255,255,255,0.15);
-    color: white;
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    font-size: 18px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    backdrop-filter: blur(4px);
-    z-index: 10;
-    pointer-events: all;
-  }
+/* Overlay tint on result */
+#bgTint {
+  position:fixed;
+  inset:0;
+  z-index:5;
+  pointer-events:none;
+  transition:background 0.4s;
+}
 </style>
 </head>
 <body>
 
-<header>
-  <div class="logo">TMO</div>
+<video id="video" autoplay playsinline muted></video>
+<canvas id="canvas"></canvas>
+<div id="bgTint"></div>
+
+<!-- TOP BAR -->
+<div id="topBar">
   <div>
-    <h1>Label Detector</h1>
-    <p>QC: 15W-40 CI-4 DIESEL only</p>
+    <div class="top-title">TMO Label Detector</div>
+    <div class="top-sub">QC: 15W-40 · CI-4 · DIESEL</div>
   </div>
-</header>
-
-<div class="main">
-
-  <!-- Camera View -->
-  <div class="camera-wrap" id="cameraWrap">
-    <video id="video" autoplay playsinline muted></video>
-    <canvas id="canvas"></canvas>
-    <div class="cam-overlay">
-      <div class="scan-frame">
-        <div class="scan-line"></div>
-      </div>
-      <span class="scan-label">Arahkan ke label TMO</span>
-    </div>
-    <button class="cam-switch" id="btnSwitch" title="Ganti kamera">🔄</button>
-  </div>
-
-  <!-- Preview after capture -->
-  <div class="preview-wrap" id="previewWrap">
-    <img id="preview-img" alt="Captured label" />
-  </div>
-
-  <!-- Controls -->
-  <div class="controls">
-    <button class="btn btn-capture" id="btnCapture">
-      <span class="btn-icon">📷</span> Deteksi Label
-    </button>
-    <button class="btn btn-retake" id="btnRetake" style="display:none">
-      <span class="btn-icon">🔁</span> Ulangi
-    </button>
-  </div>
-
-  <!-- Loading Bar -->
-  <div class="loading-bar" id="loadingBar">
-    <div class="loading-fill"></div>
-  </div>
-  <div id="loadingStatus" style="display:none;font-size:11px;color:var(--muted);text-align:center;padding:4px 0 2px;letter-spacing:0.3px;"></div>
-
-  <!-- Result Area -->
-  <div class="result-area" id="resultArea">
-
-    <!-- Default instruction -->
-    <div class="instruction" id="instructionState">
-      <div class="instruction-icon">🔍</div>
-      <h2>Siap Mendeteksi</h2>
-      <p>Arahkan kamera ke label oli TMO. Produk dinyatakan <strong>OK</strong> hanya jika terbaca <strong>15W-40 · CI-4 · DIESEL</strong> secara bersamaan.</p>
-    </div>
-
-    <!-- Result card (hidden until scan) -->
-    <div class="result-card" id="resultCard" style="display:none">
-      <div class="result-header">
-        <div class="result-badge" id="resultBadge"></div>
-        <div>
-          <div class="result-title" id="resultTitle">—</div>
-          <div class="result-sub" id="resultSub">—</div>
-        </div>
-      </div>
-      <div class="chip-row" id="chipRow"></div>
-      <div class="result-detail" id="resultDetail"></div>
-    </div>
-
-    <!-- History -->
-    <div id="historySection" style="display:none">
-      <p class="history-label">Riwayat Scan</p>
-      <div class="history-list" id="historyList"></div>
-    </div>
-
+  <div class="top-controls">
+    <button class="ctrl-btn" id="btnTorch" title="Flash">🔦</button>
+    <button class="ctrl-btn" id="btnSwitch" title="Flip camera">🔄</button>
+    <button class="ctrl-btn" id="btnHistory" title="History">📋</button>
   </div>
 </div>
 
+<!-- SCAN INDICATOR -->
+<div id="scanIndicator">Memulai kamera…</div>
+
+<!-- CAMERA OVERLAY -->
+<div id="overlay">
+  <div class="scan-box" id="scanBox">
+    <div class="scan-border"></div>
+    <div class="corner tl"></div>
+    <div class="corner tr"></div>
+    <div class="corner bl"></div>
+    <div class="corner br"></div>
+    <div class="scan-line" id="scanLine"></div>
+    <div class="cooldown-ring" id="cooldownRing"></div>
+  </div>
+  <div class="scan-hint" id="scanHint">Arahkan label ke kotak scan</div>
+</div>
+
+<!-- RESULT PILL -->
+<div id="resultPill">
+  <div class="pill-status idle" id="pillStatus">
+    <div class="pill-icon" id="pillIcon">🔍</div>
+    <div class="pill-text">
+      <div class="pill-title" id="pillTitle">Menunggu label…</div>
+      <div class="pill-sub" id="pillSub">Arahkan kamera ke label TMO</div>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORY DRAWER -->
+<div id="historyDrawer">
+  <div class="drawer-handle"></div>
+  <div class="drawer-title">Riwayat Scan</div>
+  <div id="historyList"><p style="color:rgba(255,255,255,0.3);font-size:13px;">Belum ada riwayat.</p></div>
+</div>
+
 <script>
-const video = document.getElementById('video');
-const canvas = document.getElementById('canvas');
-const btnCapture = document.getElementById('btnCapture');
-const btnRetake = document.getElementById('btnRetake');
-const btnSwitch = document.getElementById('btnSwitch');
-const cameraWrap = document.getElementById('cameraWrap');
-const previewWrap = document.getElementById('previewWrap');
-const previewImg = document.getElementById('preview-img');
-const loadingBar = document.getElementById('loadingBar');
-const instructionState = document.getElementById('instructionState');
-const resultCard = document.getElementById('resultCard');
-const resultBadge = document.getElementById('resultBadge');
-const resultTitle = document.getElementById('resultTitle');
-const resultSub = document.getElementById('resultSub');
-const chipRow = document.getElementById('chipRow');
-const resultDetail = document.getElementById('resultDetail');
-const historySection = document.getElementById('historySection');
+const video       = document.getElementById('video');
+const canvas      = document.getElementById('canvas');
+const overlay     = document.getElementById('overlay');
+const bgTint      = document.getElementById('bgTint');
+const scanLine    = document.getElementById('scanLine');
+const scanHint    = document.getElementById('scanHint');
+const coolRing    = document.getElementById('cooldownRing');
+const scanInd     = document.getElementById('scanIndicator');
+const pillStatus  = document.getElementById('pillStatus');
+const pillIcon    = document.getElementById('pillIcon');
+const pillTitle   = document.getElementById('pillTitle');
+const pillSub     = document.getElementById('pillSub');
 const historyList = document.getElementById('historyList');
+const historyDrawer = document.getElementById('historyDrawer');
+const btnTorch    = document.getElementById('btnTorch');
+const btnSwitch   = document.getElementById('btnSwitch');
+const btnHistory  = document.getElementById('btnHistory');
 
 let stream = null;
 let facingMode = 'environment';
-let history = [];
-let isProcessing = false;
-let torchOn = false;
 let torchTrack = null;
+let torchOn = false;
+let isAnalyzing = false;
+let scanInterval = null;
+let history = [];
+let lastStatus = 'idle'; // idle | ok | ng
 
-// ── TORCH BUTTON (injected into camera overlay) ──
-const torchBtn = document.createElement('button');
-torchBtn.id = 'btnTorch';
-torchBtn.title = 'Flash/Torch';
-torchBtn.style.cssText = 'position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.55);border:1px solid rgba(255,255,255,0.15);color:white;width:38px;height:38px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);z-index:10;';
-torchBtn.textContent = '🔦';
-cameraWrap.appendChild(torchBtn);
+const SCAN_INTERVAL_MS = 2500; // scan every 2.5s
 
-torchBtn.addEventListener('click', async () => {
-  if (!torchTrack) return;
-  torchOn = !torchOn;
-  try {
-    await torchTrack.applyConstraints({ advanced: [{ torch: torchOn }] });
-    torchBtn.style.background = torchOn ? 'rgba(99,102,241,0.7)' : 'rgba(0,0,0,0.55)';
-    torchBtn.textContent = torchOn ? '💡' : '🔦';
-  } catch { torchOn = false; torchBtn.textContent = '🔦'; }
-});
-
-// ── CAMERA START ──
+// ── CAMERA ──
 async function startCamera() {
   try {
     if (stream) stream.getTracks().forEach(t => t.stop());
     torchOn = false;
     torchTrack = null;
-    torchBtn.style.background = 'rgba(0,0,0,0.55)';
-    torchBtn.textContent = '🔦';
+    btnTorch.classList.remove('active');
+    btnTorch.textContent = '🔦';
 
     stream = await navigator.mediaDevices.getUserMedia({
       video: {
         facingMode,
-        width: { ideal: 1920 },
+        width:  { ideal: 1920 },
         height: { ideal: 1080 },
-        focusMode: 'continuous'
       }
     });
     video.srcObject = stream;
+    await new Promise(r => video.addEventListener('loadedmetadata', r, { once: true }));
 
-    // Grab torch-capable track
     const track = stream.getVideoTracks()[0];
     const caps = track.getCapabilities ? track.getCapabilities() : {};
     if (caps.torch) {
       torchTrack = track;
-      torchBtn.style.display = 'flex';
+      btnTorch.style.display = 'flex';
     } else {
-      torchBtn.style.display = 'none';
+      btnTorch.style.display = 'none';
     }
+
+    setScanIndicator('Siap — mendeteksi…');
+    startRealTimeScan();
   } catch (e) {
-    alert('Tidak dapat mengakses kamera. Pastikan izin kamera sudah diberikan.');
+    setScanIndicator('❌ Kamera gagal dibuka');
+    setPill('idle', '⚠️', 'Kamera tidak bisa dibuka', 'Pastikan izin kamera sudah diberikan', null);
   }
 }
 
+// ── TORCH ──
+btnTorch.addEventListener('click', async () => {
+  if (!torchTrack) return;
+  torchOn = !torchOn;
+  try {
+    await torchTrack.applyConstraints({ advanced: [{ torch: torchOn }] });
+    btnTorch.classList.toggle('active', torchOn);
+    btnTorch.textContent = torchOn ? '💡' : '🔦';
+  } catch { torchOn = false; btnTorch.classList.remove('active'); }
+});
+
+// ── FLIP ──
 btnSwitch.addEventListener('click', () => {
+  stopRealTimeScan();
   facingMode = facingMode === 'environment' ? 'user' : 'environment';
   startCamera();
 });
 
-btnCapture.addEventListener('click', () => {
-  if (isProcessing) return;
-  captureAndAnalyze();
+// ── HISTORY ──
+btnHistory.addEventListener('click', () => {
+  historyDrawer.classList.toggle('open');
+});
+historyDrawer.addEventListener('click', e => {
+  if (e.target === historyDrawer) historyDrawer.classList.remove('open');
 });
 
-btnRetake.addEventListener('click', () => {
-  // Turn off torch on retake
-  if (torchOn && torchTrack) {
-    torchTrack.applyConstraints({ advanced: [{ torch: false }] }).catch(() => {});
-    torchOn = false;
-    torchBtn.style.background = 'rgba(0,0,0,0.55)';
-    torchBtn.textContent = '🔦';
-  }
-  previewWrap.style.display = 'none';
-  cameraWrap.style.display = 'block';
-  btnCapture.style.display = 'flex';
-  btnRetake.style.display = 'none';
-  resultCard.style.display = 'none';
-  instructionState.style.display = 'flex';
-  loadingBar.classList.remove('active');
-});
+// ── IMAGE PREPROCESSING ──
+function preprocessFrame() {
+  const vw = video.videoWidth  || 640;
+  const vh = video.videoHeight || 480;
 
-// ── IMAGE PRE-PROCESSING: sharpen + contrast boost ──
-function preprocessCanvas(srcCanvas) {
-  const w = srcCanvas.width;
-  const h = srcCanvas.height;
+  // Crop center region (where scan box is)
+  const cropX = Math.floor(vw * 0.06);
+  const cropY = Math.floor(vh * 0.18);
+  const cropW = Math.floor(vw * 0.88);
+  const cropH = Math.floor(vh * 0.64);
 
-  // Step 1: crop to center 80% (label area focus)
-  const cropX = Math.floor(w * 0.05);
-  const cropY = Math.floor(h * 0.1);
-  const cropW = Math.floor(w * 0.9);
-  const cropH = Math.floor(h * 0.8);
-
-  // Step 2: upscale crop to 1280px wide for better OCR
   const outW = 1280;
   const outH = Math.floor((cropH / cropW) * outW);
 
-  const out = document.createElement('canvas');
-  out.width = outW;
-  out.height = outH;
-  const ctx = out.getContext('2d');
+  canvas.width  = outW;
+  canvas.height = outH;
+  const ctx = canvas.getContext('2d');
 
-  // Draw cropped + upscaled
-  ctx.drawImage(srcCanvas, cropX, cropY, cropW, cropH, 0, 0, outW, outH);
+  // Draw upscaled crop
+  ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, outW, outH);
 
-  // Step 3: contrast + brightness boost via CSS filter trick on offscreen canvas
-  const filtered = document.createElement('canvas');
-  filtered.width = outW;
-  filtered.height = outH;
-  const fctx = filtered.getContext('2d');
-
-  // Increase contrast using pixel manipulation
+  // Contrast + brightness boost
   const imgData = ctx.getImageData(0, 0, outW, outH);
   const d = imgData.data;
-  const contrast = 1.4;   // 40% more contrast
-  const brightness = 15;  // slight brightness lift
+  const contrast = 1.45;
+  const brightness = 12;
 
+  // First pass: contrast/brightness
+  const src = new Uint8ClampedArray(d.length);
   for (let i = 0; i < d.length; i += 4) {
-    d[i]   = Math.min(255, Math.max(0, (d[i]   - 128) * contrast + 128 + brightness));
-    d[i+1] = Math.min(255, Math.max(0, (d[i+1] - 128) * contrast + 128 + brightness));
-    d[i+2] = Math.min(255, Math.max(0, (d[i+2] - 128) * contrast + 128 + brightness));
+    src[i]   = Math.min(255, Math.max(0, (d[i]   - 128) * contrast + 128 + brightness));
+    src[i+1] = Math.min(255, Math.max(0, (d[i+1] - 128) * contrast + 128 + brightness));
+    src[i+2] = Math.min(255, Math.max(0, (d[i+2] - 128) * contrast + 128 + brightness));
+    src[i+3] = d[i+3];
   }
 
-  // Step 4: sharpen kernel convolution (unsharp mask style)
-  const kernel = [
-     0, -1,  0,
-    -1,  5, -1,
-     0, -1,  0
-  ];
-  const src = new Uint8ClampedArray(d);
-  for (let y = 1; y < outH - 1; y++) {
-    for (let x = 1; x < outW - 1; x++) {
+  // Sharpen kernel
+  const kernel = [0,-1,0,-1,5,-1,0,-1,0];
+  for (let y = 1; y < outH-1; y++) {
+    for (let x = 1; x < outW-1; x++) {
       for (let c = 0; c < 3; c++) {
-        let val = 0;
+        let v = 0;
         for (let ky = -1; ky <= 1; ky++) {
           for (let kx = -1; kx <= 1; kx++) {
-            const idx = ((y + ky) * outW + (x + kx)) * 4 + c;
-            val += src[idx] * kernel[(ky + 1) * 3 + (kx + 1)];
+            v += src[((y+ky)*outW+(x+kx))*4+c] * kernel[(ky+1)*3+(kx+1)];
           }
         }
-        d[(y * outW + x) * 4 + c] = Math.min(255, Math.max(0, val));
+        d[(y*outW+x)*4+c] = Math.min(255, Math.max(0, v));
       }
     }
   }
+  ctx.putImageData(imgData, 0, 0);
 
-  fctx.putImageData(imgData, 0, 0);
-  return filtered;
+  return canvas.toDataURL('image/jpeg', 0.88).split(',')[1];
 }
 
-// ── API CALL ──
-async function callClaudeAPI(base64, attempt) {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+// ── CLAUDE API ──
+async function analyzeFrame(base64) {
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
+      max_tokens: 512,
       messages: [{
         role: 'user',
         content: [
-          {
-            type: 'image',
-            source: { type: 'base64', media_type: 'image/jpeg', data: base64 }
-          },
-          {
-            type: 'text',
-            text: `Kamu adalah sistem QC otomatis untuk produk oli TMO Lubricant. Ini adalah percobaan analisis ke-${attempt}.
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
+          { type: 'text', text: `Kamu adalah sistem QC real-time untuk oli TMO Lubricant.
 
-PRODUK TARGET (satu-satunya yang dinyatakan OK):
+Produk TARGET yang dinyatakan OK:
 - Brand: TMO Lubricant
-- Grade viskositas: 15W-40
-- Spesifikasi API: CI-4
-- Tipe bahan bakar: DIESEL
+- Grade: 15W-40
+- Spec API: CI-4 (atau CI4)
+- Tipe: DIESEL
 
-CARA MEMBACA LABEL TMO:
-- Grade biasanya tampil besar di area biru/bawah: "15W-40"
-- Spec API tampil kecil di sebelah grade: "CI-4" (bisa juga ditulis CI4 tanpa strip)
-- Tipe bahan bakar tampil di area pojok bawah kanan: "DIESEL" atau "GASOLINE"
-- Gambar sudah diproses (contrast boost + sharpen) untuk membantu keterbacaan
+Gambar ini adalah crop area tengah frame kamera yang sudah di-sharpen dan contrast-boost.
 
-INSTRUKSI PENTING:
-- Periksa SELURUH area label, termasuk teks kecil
-- "CI-4" dan "CI4" dianggap sama (keduanya valid)
-- Jika teks agak buram tapi masih bisa dibaca konteksnya, gunakan judgment
-- Hanya NG jika benar-benar tidak bisa dibaca sama sekali
+Tugas: periksa apakah gambar menunjukkan label produk TMO yang memenuhi KETIGA kriteria di atas.
 
-Kembalikan HANYA JSON ini, tanpa teks lain:
+Kembalikan HANYA JSON (tanpa teks lain):
 {
-  "status": "OK" | "NG",
-  "grade_detected": "<grade terbaca atau TIDAK TERBACA>",
-  "spec_detected": "<spec terbaca atau TIDAK TERBACA>",
-  "type_detected": "<DIESEL, GASOLINE, atau TIDAK TERBACA>",
+  "status": "OK" | "NG" | "NO_LABEL",
+  "grade": "<terbaca atau ?>",
+  "spec": "<terbaca atau ?>",
+  "type": "<terbaca atau ?>",
   "confidence": "HIGH" | "MEDIUM" | "LOW",
-  "ng_reason": "<jika NG: kriteria mana yang tidak sesuai, jika OK: kosongkan>",
-  "raw_text_seen": "<semua teks yang berhasil kamu baca dari label ini>"
-}`
+  "note": "<max 6 kata alasan jika NG/NO_LABEL>"
+}
+
+Aturan:
+- NO_LABEL: tidak ada label TMO terlihat sama sekali di frame
+- NG: label TMO terlihat tapi tidak memenuhi semua kriteria
+- OK: label TMO terlihat DAN grade=15W-40 DAN spec=CI-4 DAN type=DIESEL
+- CI4 tanpa strip = CI-4, keduanya valid
+- Jika tulisan agak buram tapi konteks jelas (label TMO, ada angka viskositas), tetap baca`
           }
         ]
       }]
     })
   });
-  const data = await response.json();
-  const text = data.content.map(i => i.text || '').join('').trim();
-  const clean = text.replace(/```json|```/g, '').trim();
-  return JSON.parse(clean);
+
+  if (!resp.ok) throw new Error('API error ' + resp.status);
+  const data = await resp.json();
+  const raw = data.content.map(i => i.text || '').join('').trim();
+  return JSON.parse(raw.replace(/```json|```/g, '').trim());
 }
 
-// ── MAIN CAPTURE + ANALYZE ──
-async function captureAndAnalyze() {
-  isProcessing = true;
-  btnCapture.disabled = true;
+// ── REAL TIME SCAN LOOP ──
+function startRealTimeScan() {
+  stopRealTimeScan();
+  // First scan immediately after short delay
+  setTimeout(doScan, 1200);
+  scanInterval = setInterval(doScan, SCAN_INTERVAL_MS);
+}
 
-  // Capture raw frame
-  const rawCanvas = document.createElement('canvas');
-  rawCanvas.width = video.videoWidth || 1280;
-  rawCanvas.height = video.videoHeight || 720;
-  const rawCtx = rawCanvas.getContext('2d');
-  rawCtx.drawImage(video, 0, 0);
+function stopRealTimeScan() {
+  if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
+}
 
-  // Preprocess: crop center + sharpen + contrast
-  const processedCanvas = preprocessCanvas(rawCanvas);
+async function doScan() {
+  if (isAnalyzing || !video.readyState || video.readyState < 2) return;
+  isAnalyzing = true;
+  coolRing.className = 'cooldown-ring scanning';
+  setScanIndicator('Menganalisis…');
 
-  // Show preview (processed image so user sees what AI sees)
-  const previewDataUrl = processedCanvas.toDataURL('image/jpeg', 0.92);
-  previewImg.src = previewDataUrl;
-  previewWrap.style.display = 'block';
-  cameraWrap.style.display = 'none';
-  btnCapture.style.display = 'none';
-  btnRetake.style.display = 'flex';
-  instructionState.style.display = 'none';
-  resultCard.style.display = 'none';
-  loadingBar.classList.add('active');
-  const loadingStatusEl = document.getElementById('loadingStatus');
-  loadingStatusEl.style.display = 'block';
-  loadingStatusEl.textContent = 'Memproses gambar…';
+  try {
+    const base64 = preprocessFrame();
+    const result = await analyzeFrame(base64);
+    handleResult(result);
+  } catch (e) {
+    // Silent fail — just keep scanning
+    setScanIndicator('Siap — mendeteksi…');
+    coolRing.className = 'cooldown-ring';
+  } finally {
+    isAnalyzing = false;
+  }
+}
 
-  const base64 = previewDataUrl.split(',')[1];
-
-  let result = null;
-  const MAX_RETRY = 3;
-
-  for (let attempt = 1; attempt <= MAX_RETRY; attempt++) {
-    try {
-      updateLoadingStatus(attempt, MAX_RETRY);
-      result = await callClaudeAPI(base64, attempt);
-
-      // Stop retrying if confident enough
-      if (result.confidence === 'HIGH' || result.confidence === 'MEDIUM') break;
-      if (attempt < MAX_RETRY) {
-        // Brief pause before retry
-        await new Promise(res => setTimeout(res, 800));
-      }
-    } catch (e) {
-      if (attempt === MAX_RETRY) {
-        result = { status: 'NG', grade_detected: '—', spec_detected: '—', type_detected: '—', confidence: 'LOW', ng_reason: 'Koneksi gagal atau respons AI tidak valid.', raw_text_seen: '' };
-      } else {
-        await new Promise(res => setTimeout(res, 800));
-      }
+// ── HANDLE RESULT ──
+function handleResult(r) {
+  if (r.status === 'NO_LABEL') {
+    coolRing.className = 'cooldown-ring';
+    bgTint.style.background = 'transparent';
+    setScanIndicator('Belum ada label — arahkan kamera');
+    if (lastStatus !== 'idle') {
+      setPill('idle', '🔍', 'Menunggu label…', 'Arahkan kamera ke label TMO', null);
+      lastStatus = 'idle';
     }
+    return;
   }
 
-  loadingBar.classList.remove('active');
-  document.getElementById('loadingStatus').style.display = 'none';
-  isProcessing = false;
-  btnCapture.disabled = false;
-  showResult(result);
-}
+  const gradeOK = r.grade === '15W-40';
+  const specOK  = r.spec === 'CI-4' || r.spec === 'CI4';
+  const typeOK  = r.type === 'DIESEL';
+  const isOK    = r.status === 'OK' && gradeOK && specOK && typeOK;
 
-function updateLoadingStatus(attempt, max) {
-  const msgs = ['Menganalisis gambar…', 'Memverifikasi ulang label…', 'Konfirmasi hasil akhir…'];
-  const el = document.getElementById('loadingStatus');
-  const retry = attempt > 1 ? ` (retry ${attempt}/${max})` : '';
-  if (el) el.textContent = (msgs[attempt - 1] || 'Memproses…') + retry;
-}
-
-// ── SHOW RESULT ──
-function showResult(r) {
-  const isOK = r.status === 'OK';
-  resultCard.style.display = 'flex';
+  const chips = [
+    { label: `${gradeOK?'✓':'✗'} ${r.grade||'?'}`, ok: gradeOK },
+    { label: `${specOK?'✓':'✗'} ${r.spec||'?'}`,  ok: specOK  },
+    { label: `${typeOK?'✓':'✗'} ${r.type||'?'}`,  ok: typeOK  },
+  ];
 
   if (isOK) {
-    resultBadge.className = 'result-badge badge-ok';
-    resultBadge.textContent = '✅';
-    resultTitle.textContent = 'Produk OK';
-    resultTitle.style.color = '#4ade80';
-    resultSub.textContent = '15W-40 CI-4 DIESEL — Semua kriteria terpenuhi';
+    coolRing.className = 'cooldown-ring ok';
+    bgTint.style.background = 'rgba(22,163,74,0.12)';
+    setScanIndicator('✓ Label terdeteksi');
+    if (lastStatus !== 'ok') {
+      setPill('ok', '✅', 'Produk OK', '15W-40 · CI-4 · DIESEL sesuai', chips);
+      addHistory('OK', r);
+      lastStatus = 'ok';
+    }
   } else {
-    resultBadge.className = 'result-badge badge-ng';
-    resultBadge.textContent = '❌';
-    resultTitle.textContent = 'Produk NG';
-    resultTitle.style.color = '#f87171';
-    resultSub.textContent = r.ng_reason || 'Tidak memenuhi spesifikasi yang ditentukan';
+    coolRing.className = 'cooldown-ring ng';
+    bgTint.style.background = 'rgba(185,28,28,0.1)';
+    const reason = r.note || 'Spesifikasi tidak sesuai';
+    setScanIndicator('✗ ' + reason);
+    if (lastStatus !== 'ng') {
+      setPill('ng', '❌', 'Produk NG', reason, chips);
+      addHistory('NG', r);
+      lastStatus = 'ng';
+    }
   }
-
-  chipRow.innerHTML = '';
-  const statusChip = document.createElement('span');
-  statusChip.className = 'chip ' + (isOK ? 'chip-ok' : 'chip-ng');
-  statusChip.textContent = isOK ? '✓ PASS' : '✗ FAIL';
-  chipRow.appendChild(statusChip);
-
-  const confChip = document.createElement('span');
-  confChip.className = 'chip chip-neutral';
-  confChip.textContent = 'Confidence: ' + (r.confidence || '—');
-  chipRow.appendChild(confChip);
-
-  const grade = r.grade_detected || '—';
-  const spec  = r.spec_detected  || '—';
-  const type  = r.type_detected  || '—';
-
-  // Flexible matching: CI4 = CI-4
-  const gradeOK = grade === '15W-40';
-  const specOK  = spec === 'CI-4' || spec === 'CI4';
-  const typeOK  = type === 'DIESEL';
-
-  const rawText = r.raw_text_seen ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);word-break:break-word;">Teks terbaca: ${r.raw_text_seen}</div>` : '';
-
-  resultDetail.innerHTML = `
-    <div style="display:flex;flex-direction:column;gap:7px;font-size:13px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <span style="color:var(--muted);">Grade Viskositas</span>
-        <span style="font-weight:600;color:${gradeOK?'#4ade80':'#f87171'}">${gradeOK?'✓':'✗'} ${grade}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <span style="color:var(--muted);">Spesifikasi API</span>
-        <span style="font-weight:600;color:${specOK?'#4ade80':'#f87171'}">${specOK?'✓':'✗'} ${spec}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <span style="color:var(--muted);">Tipe Bahan Bakar</span>
-        <span style="font-weight:600;color:${typeOK?'#4ade80':'#f87171'}">${typeOK?'✓':'✗'} ${type}</span>
-      </div>
-      <div style="margin-top:4px;padding-top:8px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);">
-        Target: 15W-40 · CI-4 · DIESEL
-      </div>
-      ${rawText}
-    </div>
-  `;
-
-  addHistory(r);
 }
 
-// ── HISTORY ──
-function addHistory(r) {
-  const now = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  history.unshift({ ...r, time: now });
-  if (history.length > 10) history.pop();
-  historySection.style.display = 'block';
-  historyList.innerHTML = '';
-  history.forEach(h => {
-    const div = document.createElement('div');
-    div.className = 'history-item';
+// ── UI HELPERS ──
+function setPill(state, icon, title, sub, chips) {
+  pillStatus.className = 'pill-status ' + state;
+  pillIcon.textContent = icon;
+  pillTitle.textContent = title;
+  pillSub.textContent = sub;
+
+  // Remove old check row
+  const old = pillStatus.querySelector('.check-row');
+  if (old) old.remove();
+
+  if (chips) {
+    const row = document.createElement('div');
+    row.className = 'check-row';
+    chips.forEach(c => {
+      const chip = document.createElement('span');
+      chip.className = 'check-chip ' + (c.ok ? 'pass' : 'fail');
+      chip.textContent = c.label;
+      row.appendChild(chip);
+    });
+    pillStatus.querySelector('.pill-text').appendChild(row);
+  }
+}
+
+function setScanIndicator(text) {
+  scanInd.textContent = text;
+}
+
+function addHistory(status, r) {
+  const now = new Date().toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  history.unshift({ status, r, time: now });
+  if (history.length > 20) history.pop();
+  renderHistory();
+}
+
+function renderHistory() {
+  if (!history.length) {
+    historyList.innerHTML = '<p style="color:rgba(255,255,255,0.3);font-size:13px;">Belum ada riwayat.</p>';
+    return;
+  }
+  historyList.innerHTML = history.map(h => {
     const label = h.status === 'OK'
-      ? '15W-40 CI-4 DIESEL'
-      : `${h.grade_detected||'—'} · ${h.spec_detected||'—'} · ${h.type_detected||'—'}`;
-    div.innerHTML = `
-      <div class="h-dot ${h.status==='OK'?'dot-ok':'dot-ng'}"></div>
-      <span class="h-type">${label}</span>
+      ? '15W-40 · CI-4 · DIESEL'
+      : `${h.r.grade||'?'} · ${h.r.spec||'?'} · ${h.r.type||'?'}`;
+    return `<div class="h-item">
+      <div class="h-dot dot-${h.status.toLowerCase()}"></div>
+      <span class="h-label">${h.status} — ${label}</span>
       <span class="h-time">${h.time}</span>
-    `;
-    historyList.appendChild(div);
-  });
+    </div>`;
+  }).join('');
 }
 
+// ── INIT ──
 startCamera();
 </script>
 </body>
