@@ -143,8 +143,8 @@ body { background:#000; color:#fff; font-family:'Segoe UI',system-ui,sans-serif;
   <div id="histList"><p style="color:rgba(255,255,255,0.3);font-size:13px;">Belum ada riwayat.</p></div>
 </div>
 
-<!-- Tesseract.js dari CDN -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
+<!-- Tesseract.js dari CDN - pakai v4 yang lebih stabil -->
+<script src="https://unpkg.com/tesseract.js@4.1.4/dist/tesseract.min.js"></script>
 <script>
 const video     = document.getElementById('video');
 const canvas    = document.getElementById('canvas');
@@ -184,27 +184,30 @@ const RE_TYPE  = /D[I1]E[S5]EL/i;
 // setidaknya ada kata TMO atau Lubricant agar tidak false-positive
 const RE_BRAND = /TMO|Lubricant|LUBRICANT/i;
 
-// ── INIT TESSERACT WORKER ──
+// ── INIT TESSERACT WORKER (v4 API) ──
 async function initOCR() {
   loadText.textContent = 'Memuat mesin OCR…';
   try {
-    ocrWorker = await Tesseract.createWorker('eng', 1, {
+    ocrWorker = await Tesseract.createWorker({
       logger: m => {
         if (m.status === 'loading tesseract core') loadText.textContent = 'Memuat core OCR…';
         if (m.status === 'loading language traineddata') loadText.textContent = 'Memuat data bahasa…';
         if (m.status === 'initializing api') loadText.textContent = 'Inisialisasi OCR…';
+        if (m.status === 'initialized api') loadText.textContent = 'Memuat bahasa…';
       }
     });
-    // Set PSM 6: assume a uniform block of text — cocok untuk label
+    await ocrWorker.loadLanguage('eng');
+    await ocrWorker.initialize('eng');
+    // PSM 11 = SPARSE_TEXT: cari teks di mana saja (paling fleksibel untuk label)
     await ocrWorker.setParameters({
-      tessedit_pageseg_mode: Tesseract.PSM.SPARSE_TEXT, // PSM 11: cari teks di mana saja
-      tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-+. /',
+      tessedit_pageseg_mode: '11',
+      tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-+./ ',
     });
     loadText.textContent = 'Siap!';
     setTimeout(() => loadOverlay.classList.add('hidden'), 400);
     startCamera();
   } catch(e) {
-    loadText.textContent = '❌ Gagal memuat OCR: ' + e.message;
+    loadText.textContent = '❌ Gagal memuat OCR: ' + (e.message || e);
   }
 }
 
