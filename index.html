@@ -12,19 +12,15 @@ body { background:#000; color:#fff; font-family:'Segoe UI',system-ui,sans-serif;
 
 /* overlay */
 #overlay { position:fixed; inset:0; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none; }
-
 .scan-box { width:85vw; max-width:360px; aspect-ratio:2.4/1; position:relative; }
-
 .corner { position:absolute; width:24px; height:24px; border-color:#fff; border-style:solid; opacity:0.9; }
 .corner.tl { top:0; left:0; border-width:3px 0 0 3px; border-radius:5px 0 0 0; }
 .corner.tr { top:0; right:0; border-width:3px 3px 0 0; border-radius:0 5px 0 0; }
 .corner.bl { bottom:0; left:0; border-width:0 0 3px 3px; border-radius:0 0 0 5px; }
 .corner.br { bottom:0; right:0; border-width:0 3px 3px 0; border-radius:0 0 5px 0; }
 .scan-border { position:absolute; inset:0; border:1.5px solid rgba(255,255,255,0.15); border-radius:8px; }
-
 .scan-line { position:absolute; left:8px; right:8px; height:2px; background:linear-gradient(90deg,transparent,rgba(255,255,255,0.7),transparent); animation:scanMove 2s ease-in-out infinite; top:8px; }
 @keyframes scanMove { 0%{top:8px;opacity:0;} 15%{opacity:1;} 85%{opacity:1;} 100%{top:calc(100% - 10px);opacity:0;} }
-
 .scan-hint { margin-top:10px; font-size:12px; color:rgba(255,255,255,0.65); background:rgba(0,0,0,0.5); padding:4px 14px; border-radius:20px; backdrop-filter:blur(4px); }
 
 /* cooldown ring */
@@ -42,20 +38,42 @@ body { background:#000; color:#fff; font-family:'Segoe UI',system-ui,sans-serif;
 .top-title { font-size:15px; font-weight:700; }
 .top-sub   { font-size:10px; opacity:0.6; margin-top:1px; }
 .top-controls { display:flex; gap:8px; pointer-events:all; }
-.ctrl-btn { width:36px; height:36px; border-radius:50%; background:rgba(0,0,0,0.52); border:1px solid rgba(255,255,255,0.2); color:#fff; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
-.ctrl-btn:active { transform:scale(0.9); }
+.ctrl-btn { width:36px; height:36px; border-radius:50%; background:rgba(0,0,0,0.52); border:1px solid rgba(255,255,255,0.2); color:#fff; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(4px); transition:transform 0.1s,background 0.2s; }
+.ctrl-btn:active { transform:scale(0.88); }
 .ctrl-btn.active { background:rgba(99,102,241,0.75); }
 
 /* scan indicator */
 #scanInd { position:fixed; top:62px; left:50%; transform:translateX(-50%); z-index:20; font-size:11px; color:rgba(255,255,255,0.6); background:rgba(0,0,0,0.42); padding:4px 12px; border-radius:20px; backdrop-filter:blur(4px); pointer-events:none; white-space:nowrap; }
 
+/* ── PRODUCT SELECTOR BAR ── */
+#productBar {
+  position:fixed; bottom:130px; left:0; right:0; z-index:25;
+  display:flex; justify-content:center; gap:8px; padding:0 14px;
+  pointer-events:all;
+}
+.prod-btn {
+  flex:1; max-width:160px;
+  padding:8px 6px; border-radius:12px;
+  background:rgba(0,0,0,0.60); border:1.5px solid rgba(255,255,255,0.18);
+  color:#fff; font-size:10px; font-weight:600; line-height:1.3;
+  text-align:center; cursor:pointer; backdrop-filter:blur(8px);
+  transition:background 0.2s, border-color 0.2s, transform 0.1s;
+}
+.prod-btn:active { transform:scale(0.95); }
+.prod-btn .pb-grade { font-size:13px; font-weight:800; display:block; margin-bottom:2px; }
+.prod-btn .pb-spec  { font-size:9px; opacity:0.7; display:block; }
+.prod-btn.selected  { border-color:rgba(255,255,255,0.7); background:rgba(255,255,255,0.18); }
+/* Warna aksen per produk */
+.prod-btn[data-id="diesel"].selected   { border-color:#f59e0b; background:rgba(245,158,11,0.22); }
+.prod-btn[data-id="gasoline1"].selected { border-color:#38bdf8; background:rgba(56,189,248,0.18); }
+.prod-btn[data-id="gasoline2"].selected { border-color:#a78bfa; background:rgba(167,139,250,0.18); }
+
 /* result pill */
-#resultPill { position:fixed; bottom:0; left:0; right:0; z-index:20; padding:0 14px 22px; pointer-events:none; }
+#resultPill { position:fixed; bottom:0; left:0; right:0; z-index:20; padding:0 14px 14px; pointer-events:none; }
 .pill { border-radius:16px; padding:14px 16px; display:flex; align-items:flex-start; gap:12px; backdrop-filter:blur(18px); border:1px solid rgba(255,255,255,0.12); transition:background 0.3s,border-color 0.3s; }
 .pill.idle    { background:rgba(18,18,28,0.82); }
 .pill.ok      { background:rgba(21,128,61,0.88); border-color:rgba(74,222,128,0.35); }
 .pill.ng      { background:rgba(153,27,27,0.88); border-color:rgba(248,113,113,0.35); }
-
 .pill-icon  { font-size:26px; flex-shrink:0; margin-top:1px; }
 .pill-body  { flex:1; min-width:0; }
 .pill-title { font-size:16px; font-weight:700; line-height:1.2; }
@@ -65,13 +83,13 @@ body { background:#000; color:#fff; font-family:'Segoe UI',system-ui,sans-serif;
 .chip.pass { background:rgba(74,222,128,0.2); border-color:rgba(74,222,128,0.4); color:#bbf7d0; }
 .chip.fail { background:rgba(248,113,113,0.2); border-color:rgba(248,113,113,0.4); color:#fecaca; }
 
-/* ocr raw text debug */
+/* ocr debug */
 #ocrDebug { position:fixed; top:90px; left:0; right:0; z-index:19; padding:0 14px; pointer-events:none; }
 #ocrDebug .dbg-box { background:rgba(0,0,0,0.55); border-radius:10px; padding:6px 10px; font-size:10px; color:rgba(255,255,255,0.55); max-height:60px; overflow:hidden; display:none; }
 #ocrDebug.show .dbg-box { display:block; }
 
 /* history drawer */
-#histDrawer { position:fixed; bottom:0; left:0; right:0; z-index:30; background:rgba(8,8,16,0.97); border-radius:20px 20px 0 0; border-top:1px solid rgba(255,255,255,0.1); transform:translateY(100%); transition:transform 0.3s cubic-bezier(.4,0,.2,1); max-height:55vh; overflow-y:auto; padding:16px 16px 32px; }
+#histDrawer { position:fixed; bottom:0; left:0; right:0; z-index:30; background:rgba(8,8,16,0.97); border-radius:20px 20px 0 0; border-top:1px solid rgba(255,255,255,0.1); transform:translateY(100%); transition:transform 0.3s cubic-bezier(.4,0,.2,1); max-height:60vh; overflow-y:auto; padding:16px 16px 32px; }
 #histDrawer.open { transform:translateY(0); }
 .drawer-handle { width:36px; height:4px; background:rgba(255,255,255,0.18); border-radius:2px; margin:0 auto 14px; }
 .drawer-title  { font-size:12px; font-weight:600; letter-spacing:1px; color:rgba(255,255,255,0.45); text-transform:uppercase; margin-bottom:10px; }
@@ -79,9 +97,10 @@ body { background:#000; color:#fff; font-family:'Segoe UI',system-ui,sans-serif;
 .h-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
 .dot-ok{background:#22c55e;} .dot-ng{background:#ef4444;}
 .h-lbl { flex:1; font-weight:500; } .h-time { font-size:11px; color:rgba(255,255,255,0.38); }
+.h-prod { font-size:9px; opacity:0.5; display:block; margin-top:1px; }
 
 /* loading overlay */
-#loadOverlay { position:fixed; inset:0; z-index:50; background:rgba(0,0,0,0.88); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; }
+#loadOverlay { position:fixed; inset:0; z-index:50; background:rgba(0,0,0,0.92); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; }
 #loadOverlay.hidden { display:none; }
 .load-spinner { width:40px; height:40px; border:3px solid rgba(255,255,255,0.15); border-top-color:#6366f1; border-radius:50%; animation:spin 0.8s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
@@ -96,14 +115,16 @@ body { background:#000; color:#fff; font-family:'Segoe UI',system-ui,sans-serif;
 <canvas id="canvas"></canvas>
 <div id="bgTint"></div>
 
-<!-- Loading overlay saat Tesseract init -->
 <div id="loadOverlay">
   <div class="load-spinner"></div>
   <div class="load-text" id="loadText">Memuat mesin OCR…</div>
 </div>
 
 <div id="topBar">
-  <div><div class="top-title">TMO Label Detector</div><div class="top-sub">OCR Lokal · 15W-40 · CI-4 · DIESEL</div></div>
+  <div>
+    <div class="top-title">TMO Label Detector</div>
+    <div class="top-sub" id="topSub">OCR Lokal · 15W-40 · CI-4 · DIESEL</div>
+  </div>
   <div class="top-controls">
     <button class="ctrl-btn" id="btnDebug" title="Toggle debug OCR">🔤</button>
     <button class="ctrl-btn" id="btnTorch">🔦</button>
@@ -113,7 +134,6 @@ body { background:#000; color:#fff; font-family:'Segoe UI',system-ui,sans-serif;
 </div>
 
 <div id="scanInd">Memulai kamera…</div>
-
 <div id="ocrDebug"><div class="dbg-box" id="ocrRaw"></div></div>
 
 <div id="overlay">
@@ -124,7 +144,23 @@ body { background:#000; color:#fff; font-family:'Segoe UI',system-ui,sans-serif;
     <div class="scan-line"></div>
     <div class="cool-ring" id="coolRing"></div>
   </div>
-  <div class="scan-hint">Arahkan label ke kotak scan</div>
+  <div class="scan-hint" id="scanHint">Arahkan label ke kotak scan</div>
+</div>
+
+<!-- Product Selector -->
+<div id="productBar">
+  <button class="prod-btn selected" data-id="diesel">
+    <span class="pb-grade">15W-40</span>
+    <span class="pb-spec">CI-4 · DIESEL</span>
+  </button>
+  <button class="prod-btn" data-id="gasoline1">
+    <span class="pb-grade">10W-40</span>
+    <span class="pb-spec">SN · GASOLINE</span>
+  </button>
+  <button class="prod-btn" data-id="gasoline2">
+    <span class="pb-grade">10W-30</span>
+    <span class="pb-spec">SN · GASOLINE</span>
+  </button>
 </div>
 
 <div id="resultPill">
@@ -132,7 +168,7 @@ body { background:#000; color:#fff; font-family:'Segoe UI',system-ui,sans-serif;
     <div class="pill-icon" id="pillIcon">🔍</div>
     <div class="pill-body">
       <div class="pill-title" id="pillTitle">Menunggu label…</div>
-      <div class="pill-sub"   id="pillSub">Arahkan kamera ke label TMO 15W-40</div>
+      <div class="pill-sub"   id="pillSub">Pilih produk lalu arahkan ke label</div>
     </div>
   </div>
 </div>
@@ -143,62 +179,126 @@ body { background:#000; color:#fff; font-family:'Segoe UI',system-ui,sans-serif;
   <div id="histList"><p style="color:rgba(255,255,255,0.3);font-size:13px;">Belum ada riwayat.</p></div>
 </div>
 
-<!-- Tesseract.js dari CDN - pakai v4 yang lebih stabil -->
 <script src="https://unpkg.com/tesseract.js@4.1.4/dist/tesseract.min.js"></script>
 <script>
-const video     = document.getElementById('video');
-const canvas    = document.getElementById('canvas');
-const bgTint    = document.getElementById('bgTint');
-const coolRing  = document.getElementById('coolRing');
-const scanInd   = document.getElementById('scanInd');
-const pill      = document.getElementById('pill');
-const pillIcon  = document.getElementById('pillIcon');
-const pillTitle = document.getElementById('pillTitle');
-const pillSub   = document.getElementById('pillSub');
-const histList  = document.getElementById('histList');
-const histDrawer= document.getElementById('histDrawer');
-const btnTorch  = document.getElementById('btnTorch');
-const btnSwitch = document.getElementById('btnSwitch');
-const btnHist   = document.getElementById('btnHist');
-const btnDebug  = document.getElementById('btnDebug');
-const loadOverlay=document.getElementById('loadOverlay');
-const loadText  = document.getElementById('loadText');
-const ocrDebug  = document.getElementById('ocrDebug');
-const ocrRaw    = document.getElementById('ocrRaw');
+// ── PRODUK DEFINITIONS ──
+const PRODUCTS = {
+  diesel: {
+    id:    'diesel',
+    name:  '15W-40 CI-4 DIESEL',
+    label: '15W-40 · CI-4 · DIESEL',
+    sub:   'OCR Lokal · 15W-40 · CI-4 · DIESEL',
+    hint:  'Arahkan label 15W-40 ke kotak scan',
+    idleMsg: 'Arahkan kamera ke label TMO 15W-40',
+    checks: [
+      { key:'grade', label:'15W-40', re: /1\s*5\s*W[\-–]?\s*4[0O]/i,   extract: /1\s*5\s*W[\-–]?\s*4[0O]/i },
+      { key:'spec',  label:'CI-4',   re: /CI[\-–]?\s*4/i,               extract: /CI[\-–]?\s*4(\s*PLUS)?/i },
+      { key:'type',  label:'DIESEL', re: /D[I1]E[S5]EL/i,               extract: /D[I1]E[S5]EL/i },
+    ],
+    brand: /TMO|Lubricant/i,
+  },
+  gasoline1: {
+    id:    'gasoline1',
+    name:  '10W-40 SN GASOLINE',
+    label: '10W-40 · SN · GASOLINE',
+    sub:   'OCR Lokal · 10W-40 · SN · GASOLINE',
+    hint:  'Arahkan label 10W-40 ke kotak scan',
+    idleMsg: 'Arahkan kamera ke label TMO 10W-40',
+    checks: [
+      { key:'grade', label:'10W-40', re: /1[0O]\s*W[\-–]?\s*4[0O]/i,   extract: /1[0O]\s*W[\-–]?\s*4[0O]/i },
+      { key:'spec',  label:'SN',     re: /\bSN\b/i,                     extract: /\bSN\b/i },
+      { key:'type',  label:'GASOLINE', re: /G[A4][S5][I1]L[I1]N[E3]/i, extract: /G[A4][S5][I1]L[I1]N[E3]/i },
+    ],
+    brand: /TMO|Lubricant/i,
+  },
+  gasoline2: {
+    id:    'gasoline2',
+    name:  '10W-30 SN GASOLINE',
+    label: '10W-30 · SN · GASOLINE',
+    sub:   'OCR Lokal · 10W-30 · SN · GASOLINE',
+    hint:  'Arahkan label 10W-30 ke kotak scan',
+    idleMsg: 'Arahkan kamera ke label TMO 10W-30',
+    checks: [
+      { key:'grade', label:'10W-30', re: /1[0O]\s*W[\-–]?\s*3[0O]/i,   extract: /1[0O]\s*W[\-–]?\s*3[0O]/i },
+      { key:'spec',  label:'SN',     re: /\bSN\b/i,                     extract: /\bSN\b/i },
+      { key:'type',  label:'GASOLINE', re: /G[A4][S5][I1]L[I1]N[E3]/i, extract: /G[A4][S5][I1]L[I1]N[E3]/i },
+    ],
+    brand: /TMO|Lubricant/i,
+  },
+};
+
+let activeProductId = 'diesel';
+function getProduct() { return PRODUCTS[activeProductId]; }
+
+// ── DOM REFS ──
+const video      = document.getElementById('video');
+const canvas     = document.getElementById('canvas');
+const bgTint     = document.getElementById('bgTint');
+const coolRing   = document.getElementById('coolRing');
+const scanInd    = document.getElementById('scanInd');
+const pill       = document.getElementById('pill');
+const pillIcon   = document.getElementById('pillIcon');
+const pillTitle  = document.getElementById('pillTitle');
+const pillSub    = document.getElementById('pillSub');
+const histList   = document.getElementById('histList');
+const histDrawer = document.getElementById('histDrawer');
+const btnTorch   = document.getElementById('btnTorch');
+const btnSwitch  = document.getElementById('btnSwitch');
+const btnHist    = document.getElementById('btnHist');
+const btnDebug   = document.getElementById('btnDebug');
+const loadOverlay= document.getElementById('loadOverlay');
+const loadText   = document.getElementById('loadText');
+const ocrDebug   = document.getElementById('ocrDebug');
+const ocrRaw     = document.getElementById('ocrRaw');
+const topSub     = document.getElementById('topSub');
+const scanHint   = document.getElementById('scanHint');
 
 let stream=null, facingMode='environment', torchTrack=null, torchOn=false;
 let isAnalyzing=false, scanTimer=null;
 let history=[], lastStatus='idle';
-let ocrWorker = null;
-let debugMode  = false;
+let ocrWorker=null, debugMode=false;
 
-const INTERVAL = 2500; // ms antar scan
+const INTERVAL = 2500;
 
-// ── POLA YANG DICARI (case-insensitive, toleran OCR noise) ──
-// grade: 15W-40 atau variasi OCR: 15W40, 15 W-40, 15W-4O (huruf O/angka 0)
-const RE_GRADE = /15\s*W[\-–]?\s*4[0O]/i;
-// spec: CI-4 atau CI4; CI-4 PLUS → juga valid
-const RE_SPEC  = /CI[\-–]?\s*4/i;
-// type: DIESEL
-const RE_TYPE  = /D[I1]E[S5]EL/i;
-// setidaknya ada kata TMO atau Lubricant agar tidak false-positive
-const RE_BRAND = /TMO|Lubricant|LUBRICANT/i;
+// ── PRODUCT SELECTOR ──
+document.querySelectorAll('.prod-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const id = btn.dataset.id;
+    if (id === activeProductId) return;
+    activeProductId = id;
 
-// ── INIT TESSERACT WORKER (v4 API) ──
+    // Update UI tombol
+    document.querySelectorAll('.prod-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+
+    // Update teks header & hint
+    const p = getProduct();
+    topSub.textContent   = p.sub;
+    scanHint.textContent = p.hint;
+
+    // Reset state & pill
+    lastStatus = 'idle';
+    coolRing.className = 'cool-ring';
+    bgTint.style.background = 'transparent';
+    setPill('idle', '🔍', 'Menunggu label…', p.idleMsg, null);
+    setScanInd('Siap — mendeteksi label…');
+  });
+});
+
+// ── OCR INIT ──
 async function initOCR() {
   loadText.textContent = 'Memuat mesin OCR…';
   try {
     ocrWorker = await Tesseract.createWorker({
       logger: m => {
-        if (m.status === 'loading tesseract core') loadText.textContent = 'Memuat core OCR…';
+        if (m.status === 'loading tesseract core')      loadText.textContent = 'Memuat core OCR…';
         if (m.status === 'loading language traineddata') loadText.textContent = 'Memuat data bahasa…';
-        if (m.status === 'initializing api') loadText.textContent = 'Inisialisasi OCR…';
-        if (m.status === 'initialized api') loadText.textContent = 'Memuat bahasa…';
+        if (m.status === 'initializing api')             loadText.textContent = 'Inisialisasi OCR…';
+        if (m.status === 'initialized api')              loadText.textContent = 'Memuat bahasa…';
       }
     });
     await ocrWorker.loadLanguage('eng');
     await ocrWorker.initialize('eng');
-    // PSM 11 = SPARSE_TEXT: cari teks di mana saja (paling fleksibel untuk label)
     await ocrWorker.setParameters({
       tessedit_pageseg_mode: '11',
       tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-+./ ',
@@ -266,62 +366,50 @@ btnDebug.addEventListener('click',()=>{
 function captureFrame() {
   const vw = video.videoWidth  || 640;
   const vh = video.videoHeight || 480;
-
-  // Ambil region tengah tempat scan box berada
   const cx = Math.floor(vw * 0.05);
   const cy = Math.floor(vh * 0.10);
   const cw = Math.floor(vw * 0.90);
   const ch = Math.floor(vh * 0.80);
-
-  // Output lebih kecil dari versi AI → 640px cukup untuk OCR & lebih cepat
   const outW = 640;
-  const outH = Math.floor((ch / cw) * outW);
+  const outH = Math.floor((ch/cw)*outW);
   canvas.width  = outW;
   canvas.height = outH;
   const ctx = canvas.getContext('2d');
-
-  // Grayscale + contrast boost → OCR lebih akurat
   ctx.filter = 'grayscale(1) contrast(1.6) brightness(1.1)';
   ctx.drawImage(video, cx, cy, cw, ch, 0, 0, outW, outH);
   ctx.filter = 'none';
-
   return canvas;
 }
 
-// ── OCR → PARSE HASIL ──
+// ── OCR ──
 async function runOCR() {
-  const cvs = captureFrame();
-  const { data } = await ocrWorker.recognize(cvs);
+  const { data } = await ocrWorker.recognize(captureFrame());
   return data.text || '';
 }
 
+// ── PARSE berdasarkan produk aktif ──
 function parseOCR(text) {
-  // Normalisasi: ganti newline jadi spasi, kompres whitespace
   const t = text.replace(/\n/g,' ').replace(/\s+/g,' ');
+  const p = getProduct();
 
-  const gradeOK = RE_GRADE.test(t);
-  const specOK  = RE_SPEC.test(t);
-  const typeOK  = RE_TYPE.test(t);
-  const brandOK = RE_BRAND.test(t);
+  const brandOK = p.brand.test(t);
+  const results = p.checks.map(c => {
+    const match = t.match(c.extract);
+    return {
+      key:   c.key,
+      label: c.label,
+      ok:    c.re.test(t),
+      found: match ? match[0].replace(/\s/g,'') : null,
+    };
+  });
 
-  // Ekstrak nilai yang ditemukan untuk chip display
-  const gradeMatch = t.match(/15\s*W[\-–]?\s*4[0O]/i);
-  const specMatch  = t.match(/CI[\-–]?\s*4(\s*PLUS)?/i);
-  const typeMatch  = t.match(/D[I1]E[S5]EL/i);
-
-  const grade = gradeMatch ? gradeMatch[0].replace(/\s/g,'') : null;
-  const spec  = specMatch  ? specMatch[0].replace(/\s/g,'')  : null;
-  const type  = typeMatch  ? typeMatch[0]                     : null;
-
-  if (!brandOK && !gradeOK && !specOK && !typeOK) {
-    return { status: 'NO_LABEL', grade:null, spec:null, type:null, raw:t };
+  const anyFound = results.some(r => r.ok);
+  if (!brandOK && !anyFound) {
+    return { status: 'NO_LABEL', results, raw: t };
   }
 
-  const allOK = gradeOK && specOK && typeOK;
-  return {
-    status: allOK ? 'OK' : 'NG',
-    grade, spec, type, raw: t
-  };
+  const allOK = results.every(r => r.ok);
+  return { status: allOK ? 'OK' : 'NG', results, raw: t };
 }
 
 // ── SCAN LOOP ──
@@ -339,12 +427,10 @@ async function doScan(){
   isAnalyzing=true;
   coolRing.className='cool-ring scanning';
   setScanInd('Membaca teks…');
-
   try {
     const rawText = await runOCR();
-    if(debugMode) ocrRaw.textContent = rawText.trim().slice(0, 200);
-    const r = parseOCR(rawText);
-    handleResult(r);
+    if(debugMode) ocrRaw.textContent = rawText.trim().slice(0,200);
+    handleResult(parseOCR(rawText));
   } catch(e) {
     coolRing.className='cool-ring';
     setScanInd('Siap — mendeteksi label…');
@@ -355,48 +441,41 @@ async function doScan(){
 
 // ── HANDLE RESULT ──
 function handleResult(r){
+  const p = getProduct();
+
   if(r.status==='NO_LABEL'){
     coolRing.className='cool-ring';
     bgTint.style.background='transparent';
     setScanInd('Belum ada label — arahkan kamera');
     if(lastStatus!=='idle'){
-      setPill('idle','🔍','Menunggu label…','Arahkan kamera ke label TMO 15W-40',null);
+      setPill('idle','🔍','Menunggu label…', p.idleMsg, null);
       lastStatus='idle';
     }
     return;
   }
 
-  const gradeOK = !!r.grade;
-  const specOK  = !!r.spec;
-  const typeOK  = !!r.type;
-  const isOK    = r.status==='OK';
+  const chips = r.results.map(c => ({
+    label: (c.ok?'✓':'✗')+' '+(c.found || c.label+'?'),
+    ok: c.ok
+  }));
 
-  const chips=[
-    {label:(gradeOK?'✓':'✗')+' '+(r.grade||'15W-40?'), ok:gradeOK},
-    {label:(specOK ?'✓':'✗')+' '+(r.spec ||'CI-4?'),   ok:specOK},
-    {label:(typeOK ?'✓':'✗')+' '+(r.type ||'DIESEL?'), ok:typeOK},
-  ];
-
-  if(isOK){
+  if(r.status==='OK'){
     coolRing.className='cool-ring ok';
     bgTint.style.background='rgba(22,163,74,0.13)';
     setScanInd('✓ Label sesuai');
     if(lastStatus!=='ok'){
-      setPill('ok','✅','Produk OK','15W-40 · CI-4 · DIESEL',chips);
-      addHist('OK',r); lastStatus='ok';
+      setPill('ok','✅','Produk OK', p.label, chips);
+      addHist('OK', r, p); lastStatus='ok';
     }
   } else {
     coolRing.className='cool-ring ng';
     bgTint.style.background='rgba(185,28,28,0.11)';
-    const missing = [];
-    if(!gradeOK) missing.push('15W-40');
-    if(!specOK)  missing.push('CI-4');
-    if(!typeOK)  missing.push('DIESEL');
-    const reason = 'Tidak ada: ' + missing.join(', ');
+    const missing = r.results.filter(c=>!c.ok).map(c=>c.label);
+    const reason  = 'Tidak ada: ' + missing.join(', ');
     setScanInd('✗ '+reason);
     if(lastStatus!=='ng'){
-      setPill('ng','❌','Produk NG',reason,chips);
-      addHist('NG',r); lastStatus='ng';
+      setPill('ng','❌','Produk NG', reason, chips);
+      addHist('NG', r, p); lastStatus='ng';
     }
   }
 }
@@ -424,23 +503,31 @@ function setPill(state,icon,title,sub,chips){
 
 function setScanInd(t){ scanInd.textContent=t; }
 
-function addHist(status,r){
+function addHist(status, r, product){
   const now=new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  history.unshift({status,r,time:now});
-  if(history.length>20) history.pop();
+  history.unshift({status, r, product, time:now});
+  if(history.length>30) history.pop();
   renderHist();
 }
 
 function renderHist(){
-  if(!history.length){ histList.innerHTML='<p style="color:rgba(255,255,255,0.3);font-size:13px;">Belum ada riwayat.</p>'; return; }
+  if(!history.length){
+    histList.innerHTML='<p style="color:rgba(255,255,255,0.3);font-size:13px;">Belum ada riwayat.</p>';
+    return;
+  }
   histList.innerHTML=history.map(h=>{
-    const g = h.r.grade||'?', sp=h.r.spec||'?', ty=h.r.type||'?';
-    const lbl = h.status==='OK' ? '15W-40 · CI-4 · DIESEL' : `${g} · ${sp} · ${ty}`;
-    return `<div class="h-item"><div class="h-dot dot-${h.status.toLowerCase()}"></div><span class="h-lbl">${h.status} — ${lbl}</span><span class="h-time">${h.time}</span></div>`;
+    const chips = h.r.results.map(c=>`<span style="font-size:10px;opacity:0.7;margin-right:4px;">${c.ok?'✓':'✗'} ${c.found||c.label}</span>`).join('');
+    return `<div class="h-item">
+      <div class="h-dot dot-${h.status.toLowerCase()}"></div>
+      <div class="h-lbl">
+        <span>${h.status} — ${h.product.label}</span>
+        <span class="h-prod">${h.product.name}</span>
+      </div>
+      <span class="h-time">${h.time}</span>
+    </div>`;
   }).join('');
 }
 
-// Start!
 initOCR();
 </script>
 </body>
